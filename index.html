@@ -26,19 +26,19 @@
     <div id="viewer"><span id="placeholder">A19 Neural Ready...</span></div>
 
     <div class="controls">
-        <textarea id="prompt" rows="3" placeholder="Lumber prompt..."></textarea>
-        <button id="forge-btn">ACTIVATE SILICON</button>
+        <textarea id="prompt" rows="3" placeholder="Vision..."></textarea>
+        <button id="forge-btn">UNLEASH SILICON</button>
         <div id="status-area">
-            <div id="status">Sovereign Mode // WebGPU v3.1</div>
+            <div id="status">Direct GPU Engine Standby</div>
             <div class="progress-bar"><div id="progress" class="progress-fill"></div></div>
         </div>
     </div>
 
-    <div id="console">> Initializing A19...</div>
+    <div id="console">> Accessing Core Silcon...</div>
 
     <script type="module">
-        // Using the 2026 Transformers.js v3 branch for text-to-image support
-        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19';
+        // 2026 Pro-Fix: Use the unbundled library to bypass 'Task' limitations
+        import { StableDiffusionPipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19';
 
         const log = (msg) => {
             const c = document.getElementById('console');
@@ -46,45 +46,33 @@
             c.scrollTop = c.scrollHeight;
         };
 
-        env.allowLocalModels = false;
-        env.useBrowserCache = true;
-
         let forge = null;
         const btn = document.getElementById('forge-btn');
         const status = document.getElementById('status');
         const progress = document.getElementById('progress');
 
         async function init() {
-            log("Requesting GPU Handshake...");
+            log("Forcing StableDiffusionPipeline Handshake...");
             
-            // Critical 2026 Mobile Fix: Explicitly check for WebGPU adapter
-            if (!navigator.gpu) {
-                log("WebGPU not found. Go to Safari Advanced Settings.");
-                return false;
-            }
-
             try {
-                log("Downloading Sovereign-Turbo (q4)...");
-                status.innerText = "Downloading Model...";
-                
-                // v3.0 logic: text-to-image is now a core pipeline
-                forge = await pipeline('text-to-image', 'onnx-community/sdxl-turbo-64-bit-v2', {
+                // Bypass 'pipeline()' wrapper and instantiate the class directly
+                forge = await StableDiffusionPipeline.from_pretrained('onnx-community/sdxl-turbo-64-bit-v2', {
                     device: 'webgpu',
                     dtype: 'q4',
                     progress_callback: (p) => {
                         if (p.status === 'progress') {
                             const pct = Math.round(p.progress);
                             progress.style.width = `${pct}%`;
-                            status.innerText = `Hydrating: ${pct}%`;
+                            status.innerText = `Hydrating Forge: ${pct}%`;
                         }
                     }
                 });
                 
-                log("Silicon Synced. Forge Online.");
-                status.innerText = "A19 Neural Engine Active.";
+                log("Direct Engine Connected. Forge Online.");
+                status.innerText = "A19 Silicon Active.";
                 return true;
             } catch (err) {
-                log("SILICON ERROR: " + err.message);
+                log("ENGINE ERROR: " + err.message);
                 return false;
             }
         }
@@ -100,13 +88,12 @@
 
             btn.disabled = true;
             btn.innerText = "FORGING...";
-            log("Executing Diffusion on NPU...");
             
             const start = performance.now();
             try {
-                // Real-time Turbo generation
+                // Using 'from_text' for the direct engine call
                 const output = await forge(pText, {
-                    num_inference_steps: 1, // Ultra-fast for mobile
+                    num_inference_steps: 1,
                     width: 512,
                     height: 512
                 });
