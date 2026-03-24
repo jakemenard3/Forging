@@ -2,113 +2,74 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Sovereign Forge</title>
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Forge%22,%22short_name%22:%22Forge%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23000%22,%22theme_color%22:%22%23000%22}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign Probe</title>
     <style>
-        :root { --accent: #00ff88; --bg: #000; --panel: #111; --border: #333; }
-        body { background: var(--bg); color: #fff; font-family: -apple-system, sans-serif; margin: 0; padding: 20px; padding-top: env(safe-area-inset-top); display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
-        #viewer { width: 100%; aspect-ratio: 1; background: var(--panel); border-radius: 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); overflow: hidden; }
-        img { width: 100%; height: 100%; object-fit: cover; }
-        .controls { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 12px; }
-        textarea { width: 100%; background: var(--panel); border: 1px solid var(--border); color: #fff; padding: 16px; border-radius: 12px; font-size: 17px; box-sizing: border-box; outline: none; }
-        button { width: 100%; border: none; padding: 18px; border-radius: 12px; font-weight: 700; font-size: 17px; cursor: pointer; }
-        #forge-btn { background: var(--accent); color: #000; }
-        #status-area { width: 100%; margin-top: 15px; text-align: center; }
-        #status { font-size: 13px; color: #888; margin-bottom: 8px; }
-        .progress-bar { width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
-        .progress-fill { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease; }
-        #console { width: 100%; margin-top: 20px; background: #080808; border: 1px solid #222; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 10px; color: #555; max-height: 100px; overflow-y: auto; text-align: left; }
+        body { background: #000; color: #00ff88; font-family: monospace; padding: 20px; font-size: 14px; line-height: 1.5; }
+        #console { white-space: pre-wrap; word-wrap: break-word; }
+        .fail { color: #ff3333; font-weight: bold; }
+        .pass { color: #00ccff; }
     </style>
 </head>
 <body>
-
-    <div id="viewer"><span id="placeholder">A19 Neural Ready...</span></div>
-
-    <div class="controls">
-        <textarea id="prompt" rows="3" placeholder="Vision..."></textarea>
-        <button id="forge-btn">UNLEASH SILICON</button>
-        <div id="status-area">
-            <div id="status">Direct GPU Engine Standby</div>
-            <div class="progress-bar"><div id="progress" class="progress-fill"></div></div>
-        </div>
-    </div>
-
-    <div id="console">> Accessing Core Silcon...</div>
-
+    <div id="console">> Initiating Core Systems Diagnostic...<br><br></div>
     <script type="module">
-        // 2026 Pro-Fix: Use the unbundled library to bypass 'Task' limitations
-        import { StableDiffusionPipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19';
-
-        const log = (msg) => {
-            const c = document.getElementById('console');
-            c.innerHTML += `<br>> ${msg}`;
-            c.scrollTop = c.scrollHeight;
+        const consoleEl = document.getElementById('console');
+        const log = (msg, status = '') => {
+            let className = '';
+            if (status === 'pass') className = 'pass';
+            if (status === 'fail') className = 'fail';
+            consoleEl.innerHTML += `<span class="${className}">> ${msg}</span><br>`;
         };
 
-        let forge = null;
-        const btn = document.getElementById('forge-btn');
-        const status = document.getElementById('status');
-        const progress = document.getElementById('progress');
-
-        async function init() {
-            log("Forcing StableDiffusionPipeline Handshake...");
-            
+        async function runDiagnostics() {
+            // TEST 1: The Hardware Handshake
+            log("TEST 1: Requesting A19 WebGPU Adapter...");
+            if (!navigator.gpu) {
+                log("FAIL: navigator.gpu is undefined. Safari is strictly blocking WebGPU.", "fail");
+                return;
+            }
             try {
-                // Bypass 'pipeline()' wrapper and instantiate the class directly
-                forge = await StableDiffusionPipeline.from_pretrained('onnx-community/sdxl-turbo-64-bit-v2', {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    log("FAIL: WebGPU exists, but the device refused to hand over the adapter.", "fail");
+                    return;
+                }
+                log(`PASS: WebGPU Secured. Max Buffer Size: ${adapter.limits.maxStorageBufferBindingSize}`, "pass");
+            } catch (e) {
+                log(`FAIL: WebGPU request threw an error: ${e.message}`, "fail");
+                return;
+            }
+
+            // TEST 2: The Network/Library Handshake
+            log("<br>TEST 2: Importing Transformers.js Engine...");
+            let env, pipeline;
+            try {
+                const transformers = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19');
+                env = transformers.env;
+                pipeline = transformers.pipeline;
+                log("PASS: Library imported successfully.", "pass");
+            } catch (e) {
+                log(`FAIL: CDN Import error: ${e.message}`, "fail");
+                return;
+            }
+
+            // TEST 3: The Pipeline Test (Tiny Model)
+            log("<br>TEST 3: Fetching 20MB test model to verify pipeline...");
+            try {
+                env.allowLocalModels = false;
+                const testPipe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
                     device: 'webgpu',
-                    dtype: 'q4',
-                    progress_callback: (p) => {
-                        if (p.status === 'progress') {
-                            const pct = Math.round(p.progress);
-                            progress.style.width = `${pct}%`;
-                            status.innerText = `Hydrating Forge: ${pct}%`;
-                        }
-                    }
+                    dtype: 'q4'
                 });
-                
-                log("Direct Engine Connected. Forge Online.");
-                status.innerText = "A19 Silicon Active.";
-                return true;
-            } catch (err) {
-                log("ENGINE ERROR: " + err.message);
-                return false;
+                log("PASS: Test model loaded. The plumbing is completely functional.", "pass");
+                log("<br>== DIAGNOSTIC COMPLETE. HARDWARE AND NETWORK ARE CLEAR. ==", "pass");
+            } catch (e) {
+                log(`FAIL: Pipeline threw an error: ${e.message}`, "fail");
             }
         }
 
-        btn.onclick = async () => {
-            if (!forge) {
-                const ok = await init();
-                if (!ok) return;
-            }
-
-            const pText = document.getElementById('prompt').value;
-            if (!pText) return;
-
-            btn.disabled = true;
-            btn.innerText = "FORGING...";
-            
-            const start = performance.now();
-            try {
-                // Using 'from_text' for the direct engine call
-                const output = await forge(pText, {
-                    num_inference_steps: 1,
-                    width: 512,
-                    height: 512
-                });
-                
-                const url = URL.createObjectURL(output.images[0]);
-                document.getElementById('viewer').innerHTML = `<img src="${url}">`;
-                status.innerText = `Forged in ${((performance.now() - start)/1000).toFixed(2)}s`;
-                log("Success.");
-            } catch (err) {
-                log("Forge Error: " + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "FORGE IMAGE";
-            }
-        };
+        runDiagnostics();
     </script>
 </body>
 </html>
