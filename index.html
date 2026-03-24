@@ -7,52 +7,39 @@
     <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Forge%22,%22short_name%22:%22Forge%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23000%22,%22theme_color%22:%22%23000%22}">
     <style>
         :root { --accent: #00ff88; --bg: #000; --panel: #111; --border: #333; }
-        body { background: var(--bg); color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 20px; padding-top: env(safe-area-inset-top); display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
-        
+        body { background: var(--bg); color: #fff; font-family: -apple-system, sans-serif; margin: 0; padding: 20px; padding-top: env(safe-area-inset-top); display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
         #viewer { width: 100%; aspect-ratio: 1; background: var(--panel); border-radius: 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); overflow: hidden; position: relative; }
         img { width: 100%; height: 100%; object-fit: cover; }
-        
         .controls { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 12px; }
         textarea { width: 100%; background: var(--panel); border: 1px solid var(--border); color: #fff; padding: 16px; border-radius: 12px; font-size: 17px; box-sizing: border-box; resize: none; outline: none; }
-        textarea:focus { border-color: var(--accent); }
-        
-        button { width: 100%; border: none; padding: 18px; border-radius: 12px; font-weight: 700; font-size: 17px; transition: transform 0.1s, opacity 0.2s; cursor: pointer; }
+        button { width: 100%; border: none; padding: 18px; border-radius: 12px; font-weight: 700; font-size: 17px; cursor: pointer; }
         #forge-btn { background: var(--accent); color: #000; }
-        #save-btn { background: var(--panel); color: var(--accent); border: 1px solid var(--accent); display: none; margin-top: 10px; }
-        button:active { transform: scale(0.98); opacity: 0.8; }
-        
+        #save-btn { background: var(--panel); color: var(--accent); border: 1px solid var(--accent); display: none; }
         #status-area { width: 100%; margin-top: 15px; text-align: center; }
-        #status { font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 500; }
+        #status { font-size: 13px; color: #888; margin-bottom: 8px; }
         .progress-bar { width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
         .progress-fill { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease; }
-        
-        .hardware-tag { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="viewer">
-        <span id="placeholder">Awaiting Command...</span>
-    </div>
+    <div id="viewer"><span id="placeholder">A19 Silicon Ready...</span></div>
 
     <div class="controls">
-        <textarea id="prompt" rows="3" placeholder="Describe your vision (e.g., 'Aged Cedar Lumber in rain')..."></textarea>
-        
+        <textarea id="prompt" rows="3" placeholder="Vision (e.g., 'Douglas Fir Timber close-up')..."></textarea>
         <button id="forge-btn">FORGE IMAGE</button>
         <button id="save-btn">SAVE TO VAULT</button>
-        
         <div id="status-area">
-            <div id="status">Ready. A19 Neural Engine Standby.</div>
+            <div id="status">Ready. WebGPU v3 Initialized.</div>
             <div class="progress-bar"><div id="progress" class="progress-fill"></div></div>
         </div>
     </div>
 
-    <div class="hardware-tag">Sovereign Node // iPhone 17 Pro // WebGPU v3</div>
-
     <script type="module">
-        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+        // Using the 2026 WebGPU specialized diffusion library
+        import { Client } from 'https://cdn.jsdelivr.net/npm/web-txt2img@1.2.0/dist/index.js';
 
-        let forge = null;
+        let client = null;
         let lastImageBlob = null;
         const btn = document.getElementById('forge-btn');
         const saveBtn = document.getElementById('save-btn');
@@ -60,52 +47,53 @@
         const progress = document.getElementById('progress');
 
         async function init() {
-            if (!navigator.gpu) {
-                status.innerText = "CRITICAL ERROR: WebGPU Disabled in Safari Settings.";
-                return;
+            status.innerText = "Claiming A19 GPU Memory...";
+            client = new Client();
+            
+            // Check for WebGPU support
+            const support = await client.detect();
+            if (!support.webgpu) {
+                status.innerText = "Error: Enable WebGPU in Safari Advanced Settings.";
+                return false;
             }
-            
-            status.innerText = "Igniting NPU (700MB Optimized Mode)...";
-            
+
             try {
-                // Using 'q4' for 4-bit quantization to bypass iPhone RAM limits
-                forge = await pipeline('text-to-image', 'Xenova/sdxl-turbo', {
-                    device: 'webgpu',
-                    dtype: 'q4', 
-                    progress_callback: (p) => {
-                        const percent = Math.round(p.progress || 0);
-                        progress.style.width = `${percent}%`;
-                        status.innerText = `Hydrating Silicon: ${percent}%`;
-                        if(p.status === 'done') status.innerText = "A19 Neural Engine Online.";
+                // Load SD-Turbo specifically optimized for browser WebGPU
+                await client.load('sd-turbo', {
+                    onProgress: (p) => {
+                        const pct = Math.round(p.pct * 100);
+                        progress.style.width = `${pct}%`;
+                        status.innerText = `Hydrating Forge: ${pct}%`;
                     }
                 });
+                status.innerText = "Forge Online. Zero-Cloud Active.";
+                return true;
             } catch (err) {
-                status.innerText = "Handshake Failed: " + err.message;
-                console.error(err);
+                status.innerText = "Init Failed: " + err.message;
+                return false;
             }
         }
 
         btn.onclick = async () => {
             const pText = document.getElementById('prompt').value;
-            if (!pText) { alert("Enter a prompt to begin."); return; }
+            if (!pText) return;
 
-            if (!forge) await init();
-            if (!forge) return; // Exit if init failed
-            
+            if (!client) {
+                const ok = await init();
+                if (!ok) return;
+            }
+
             btn.disabled = true;
             btn.innerText = "FORGING...";
-            status.innerText = "Processing on A19 NPU...";
-            progress.style.width = "0%";
+            status.innerText = "A19 Neural Engine Processing...";
             
             const start = performance.now();
             try {
-                const output = await forge(pText, {
-                    num_inference_steps: 4,
-                    guidance_scale: 0.0,
-                });
-                
+                // Real-time generation via WebGPU
+                const result = await client.generate(pText);
                 const end = performance.now();
-                lastImageBlob = output.images[0];
+                
+                lastImageBlob = result.blob;
                 const url = URL.createObjectURL(lastImageBlob);
                 
                 document.getElementById('viewer').innerHTML = `<img src="${url}">`;
@@ -113,30 +101,19 @@
                 status.innerText = `Forged in ${((end - start)/1000).toFixed(2)}s`;
                 progress.style.width = "100%";
             } catch (err) {
-                status.innerText = "Forge Error: Check WebGPU Feature Flags.";
-                console.error(err);
+                status.innerText = "Forge Error: " + err.message;
             } finally {
                 btn.disabled = false;
                 btn.innerText = "FORGE IMAGE";
             }
         };
 
-        // The "Vault" Save Logic (Bypasses Cloud)
-        saveBtn.onclick = async () => {
+        saveBtn.onclick = () => {
             if (!lastImageBlob) return;
-            
-            const timestamp = new Date().getTime();
-            const fileName = `Forge_${timestamp}.png`;
-            
-            // Standard mobile download trigger for Files App
             const link = document.createElement('a');
             link.href = URL.createObjectURL(lastImageBlob);
-            link.download = fileName;
-            document.body.appendChild(link);
+            link.download = `SovereignForge_${Date.now()}.png`;
             link.click();
-            document.body.removeChild(link);
-            
-            status.innerText = "Stored in Local Files.";
         };
     </script>
 </body>
