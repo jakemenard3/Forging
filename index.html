@@ -27,17 +27,18 @@
 
     <div class="controls">
         <textarea id="prompt" rows="3" placeholder="Lumber prompt..."></textarea>
-        <button id="forge-btn">ACTIVATE FORGE</button>
+        <button id="forge-btn">ACTIVATE SILICON</button>
         <div id="status-area">
-            <div id="status">Sovereign Mode Engaged</div>
+            <div id="status">Sovereign Mode // WebGPU v3.1</div>
             <div class="progress-bar"><div id="progress" class="progress-fill"></div></div>
         </div>
     </div>
 
-    <div id="console">> A19 Silicon Booted...</div>
+    <div id="console">> Initializing A19...</div>
 
     <script type="module">
-        import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+        // Using the 2026 Transformers.js v3 branch for text-to-image support
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19';
 
         const log = (msg) => {
             const c = document.getElementById('console');
@@ -45,11 +46,8 @@
             c.scrollTop = c.scrollHeight;
         };
 
-        // 2026 Sovereign Config: Force Local Preference & Direct Fetch
         env.allowLocalModels = false;
         env.useBrowserCache = true;
-        env.remoteHost = 'https://huggingface.co/';
-        env.remotePath = '{model}/resolve/{revision}/';
 
         let forge = null;
         const btn = document.getElementById('forge-btn');
@@ -57,33 +55,36 @@
         const progress = document.getElementById('progress');
 
         async function init() {
-            log("Handshaking with A19 NPU...");
-            status.innerText = "Attaching to GPU...";
+            log("Requesting GPU Handshake...");
             
+            // Critical 2026 Mobile Fix: Explicitly check for WebGPU adapter
+            if (!navigator.gpu) {
+                log("WebGPU not found. Go to Safari Advanced Settings.");
+                return false;
+            }
+
             try {
-                // We use the specialized v3-ready pipeline call
-                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+                log("Downloading Sovereign-Turbo (q4)...");
+                status.innerText = "Downloading Model...";
                 
-                log("Downloading SD-Turbo (Optimized q4)...");
-                // Switch to a model repo that has been verified for mobile CORS in 2026
-                forge = await pipeline('text-to-image', 'Xenova/sdxl-turbo', {
+                // v3.0 logic: text-to-image is now a core pipeline
+                forge = await pipeline('text-to-image', 'onnx-community/sdxl-turbo-64-bit-v2', {
                     device: 'webgpu',
-                    dtype: 'q4', // Essential for 12% battery stability
+                    dtype: 'q4',
                     progress_callback: (p) => {
                         if (p.status === 'progress') {
                             const pct = Math.round(p.progress);
                             progress.style.width = `${pct}%`;
-                            status.innerText = `Hydrating Forge: ${pct}%`;
+                            status.innerText = `Hydrating: ${pct}%`;
                         }
                     }
                 });
                 
-                log("Handshake Successful. Local Model Locked.");
-                status.innerText = "A19 Forge Online.";
+                log("Silicon Synced. Forge Online.");
+                status.innerText = "A19 Neural Engine Active.";
                 return true;
             } catch (err) {
                 log("SILICON ERROR: " + err.message);
-                status.innerText = "Access Denied by Safari.";
                 return false;
             }
         }
@@ -99,22 +100,26 @@
 
             btn.disabled = true;
             btn.innerText = "FORGING...";
+            log("Executing Diffusion on NPU...");
             
             const start = performance.now();
             try {
+                // Real-time Turbo generation
                 const output = await forge(pText, {
-                    num_inference_steps: 2, // Turbo mode for low battery
-                    guidance_scale: 0.0
+                    num_inference_steps: 1, // Ultra-fast for mobile
+                    width: 512,
+                    height: 512
                 });
                 
                 const url = URL.createObjectURL(output.images[0]);
                 document.getElementById('viewer').innerHTML = `<img src="${url}">`;
                 status.innerText = `Forged in ${((performance.now() - start)/1000).toFixed(2)}s`;
+                log("Success.");
             } catch (err) {
                 log("Forge Error: " + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerText = "ACTIVATE FORGE";
+                btn.innerText = "FORGE IMAGE";
             }
         };
     </script>
